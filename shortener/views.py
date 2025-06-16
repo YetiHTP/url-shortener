@@ -11,10 +11,18 @@ class ShortenURL(APIView):
     def post(self, request):
         serializer = URLSerializer(data=request.data)
         if serializer.is_valid():
-            short_url = generate_short_url()
-            while URL.objects.filter(short_url=short_url).exists():
+            method = request.query_params.get('method', 'random')
+            url_instance = serializer.save(method=method, short_url="")
+            
+            if method == 'base62':
+                short_url = generate_short_url(url_instance.id)
+            else:
                 short_url = generate_short_url()
-            serializer.save(short_url=short_url)
+                while URL.objects.filter(short_url=short_url).exists():
+                    short_url = generate_short_url()
+
+            url_instance.short_url = short_url
+            url_instance.save()
             return Response({'original_url': serializer.data['original_url'], 'short_url': f"http://localhost:8000/shrt/{short_url}"}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
